@@ -492,10 +492,16 @@ class PronunciationGame {
     
     // Réessayer le mot actuel
     retryWord() {
-        this.state.attemptCount++;
-        this.showScreen('display-screen');
-        this.updateDisplay();
-        this.startPreparationCountdown();
+    // Bloquer si le nombre maximal d'essais est déjà atteint
+    if (this.state.attemptCount >= 3) {
+        console.warn("Nombre maximal d'essais atteint – nouvelle tentative ignorée");
+        return;
+    }
+
+    this.state.attemptCount++;
+    this.showScreen('display-screen');
+    this.updateDisplay();
+    this.startPreparationCountdown();
     }
     
     // Passer au mot suivant
