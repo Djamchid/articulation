@@ -438,11 +438,10 @@ class PronunciationGame {
                 Parlez plus fort ou rapprochez-vous du microphone
             `;
         } else if (error.error === 'no-recognition') {
-            messageEl.innerHTML = `
-                <div class="error-title">❓ Aucun mot reconnu</div>
-                Le son a été capté mais aucun mot n'a pu être identifié. Essayez d'articuler plus clairement.
-            `;
-        } else if (error.error === 'network') {
+        messageEl.innerHTML = `
+            <div class="error-title">❓ Aucune parole détectée</div>
+            Le son a été capté, mais aucune parole intelligible n'a été reconnue. Essayez d'articuler plus clairement.
+        `;        } else if (error.error === 'network') {
             messageEl.innerHTML = `
                 <div class="error-title">⚠️ Problème de connexion</div>
                 Vérifiez votre connexion internet
