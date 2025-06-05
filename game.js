@@ -480,11 +480,11 @@ class PronunciationGame {
                     message: 'Aucun son détecté'
                 });
             } else {
-                // Son détecté mais pas de mot reconnu
-                this.handleRecognitionError({
-                    error: 'no-recognition',
-                    message: 'Aucun mot reconnu'
-                });
+            // Son détecté mais pas de parole reconnue
+            this.handleRecognitionError({
+                error: 'no-recognition',
+                message: 'Aucune parole détectée'
+            });
             }
         }
     }
