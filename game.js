@@ -180,6 +180,8 @@ class PronunciationGame {
     
     // Démarrage de l'écoute
     async startListening() {
+        console.log(`\n=== DÉBUT DE L'ÉCOUTE - MOT: ${this.state.currentWord} ===`);
+        
         this.showScreen('listening-screen');
         this.updateDisplay();
         
@@ -206,6 +208,7 @@ class PronunciationGame {
         
         // Timeout de sécurité (6 secondes max)
         this.listeningTimeout = setTimeout(() => {
+            console.log('Timeout de 6 secondes atteint - arrêt de l\'écoute');
             this.stopListening();
         }, 6000);
     }
@@ -222,7 +225,18 @@ class PronunciationGame {
     
     // Gestion du résultat de reconnaissance
     handleRecognitionResult(result) {
-        console.log('Résultat:', result);
+        console.log('=== RÉSULTAT DE RECONNAISSANCE ===');
+        console.log('Transcription principale:', result.transcript);
+        console.log('Confiance:', result.confidence);
+        
+        // Afficher toutes les alternatives
+        if (result.alternatives && result.alternatives.length > 0) {
+            console.log('Alternatives détectées:');
+            result.alternatives.forEach((alt, index) => {
+                console.log(`  ${index + 1}. "${alt.transcript}" (confiance: ${alt.confidence || 'N/A'})`);
+            });
+        }
+        console.log('=================================');
         
         this.stopListening();
         this.state.recognizedWord = result.transcript;
@@ -242,8 +256,15 @@ class PronunciationGame {
         const recognized = result.transcript.toUpperCase();
         const expected = this.state.currentWord.toUpperCase();
         
+        console.log('=== ANALYSE DU RÉSULTAT ===');
+        console.log('Mot attendu:', expected);
+        console.log('Mot reconnu:', recognized);
+        console.log('Correspondance exacte:', recognized === expected);
+        
         // Vérifier la correspondance exacte
         if (recognized === expected) {
+            console.log('✓ Succès: correspondance exacte');
+            console.log('===========================');
             this.handleSuccess();
             return;
         }
@@ -251,11 +272,14 @@ class PronunciationGame {
         // Vérifier les homophones
         const wordData = lexique[expected.toLowerCase()];
         if (wordData && wordData.homophones) {
+            console.log('Homophones possibles:', wordData.homophones);
             const isHomophone = wordData.homophones.some(h => 
                 h.toUpperCase() === recognized
             );
             
             if (isHomophone) {
+                console.log('✓ Succès: homophone détecté');
+                console.log('===========================');
                 this.handleHomophone(recognized);
                 return;
             }
@@ -263,8 +287,12 @@ class PronunciationGame {
         
         // Vérifier dans les alternatives
         if (result.alternatives && result.alternatives.length > 1) {
-            for (let alt of result.alternatives) {
+            console.log('Vérification des alternatives...');
+            for (let i = 0; i < result.alternatives.length; i++) {
+                const alt = result.alternatives[i];
                 if (alt.transcript.toUpperCase() === expected) {
+                    console.log(`✓ Succès: trouvé dans l'alternative ${i + 1}`);
+                    console.log('===========================');
                     this.handleSuccess();
                     return;
                 }
@@ -272,6 +300,8 @@ class PronunciationGame {
         }
         
         // Échec
+        console.log('✗ Échec: aucune correspondance trouvée');
+        console.log('===========================');
         this.handleError();
     }
     
@@ -393,6 +423,8 @@ class PronunciationGame {
     
     // Gestion des erreurs de reconnaissance
     handleRecognitionError(error) {
+        console.log('Erreur de reconnaissance:', error);
+        
         this.stopListening();
         this.showScreen('error-screen');
         this.updateDisplay();
@@ -404,6 +436,11 @@ class PronunciationGame {
             messageEl.innerHTML = `
                 <div class="error-title">🔇 Aucun son détecté</div>
                 Parlez plus fort ou rapprochez-vous du microphone
+            `;
+        } else if (error.error === 'no-recognition') {
+            messageEl.innerHTML = `
+                <div class="error-title">❓ Aucun mot reconnu</div>
+                Le son a été capté mais aucun mot n'a pu être identifié. Essayez d'articuler plus clairement.
             `;
         } else if (error.error === 'network') {
             messageEl.innerHTML = `
@@ -429,12 +466,27 @@ class PronunciationGame {
     
     // Fin de la reconnaissance
     handleRecognitionEnd() {
-        // Si pas de résultat obtenu
+        // Si pas de résultat obtenu et on est toujours sur l'écran d'écoute
         if (this.state.currentScreen === 'listening-screen') {
-            this.handleRecognitionError({
-                error: 'no-speech',
-                message: 'Aucune parole détectée'
-            });
+            // Vérifier si c'est un problème de son ou de reconnaissance
+            const soundDetected = this.audioManager.wasSoundDetected();
+            const maxLevel = this.audioManager.getMaxAudioLevel();
+            
+            console.log(`Fin de l'écoute - Son détecté: ${soundDetected}, Niveau max: ${maxLevel.toFixed(3)}`);
+            
+            if (!soundDetected) {
+                // Aucun son détecté
+                this.handleRecognitionError({
+                    error: 'no-speech',
+                    message: 'Aucun son détecté'
+                });
+            } else {
+                // Son détecté mais pas de mot reconnu
+                this.handleRecognitionError({
+                    error: 'no-recognition',
+                    message: 'Aucun mot reconnu'
+                });
+            }
         }
     }
     
