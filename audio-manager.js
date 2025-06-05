@@ -14,8 +14,6 @@ export class AudioManager {
         this.onInterimCallback = null;
         this.onErrorCallback = null;
         this.onEndCallback = null;
-        this.soundDetected = false; // Nouveau: suivi de la détection de son
-        this.maxAudioLevel = 0; // Nouveau: niveau audio maximum détecté
         
         this.initializeSpeechRecognition();
     }
@@ -39,18 +37,10 @@ export class AudioManager {
         this.recognition.onresult = (event) => this.handleResult(event);
         this.recognition.onerror = (event) => this.handleError(event);
         this.recognition.onend = () => this.handleEnd();
-        this.recognition.onaudiostart = () => {
-            console.log('Audio capturé - début de l\'enregistrement');
-            this.soundDetected = true; // Le navigateur a détecté du son
-        };
+        this.recognition.onaudiostart = () => console.log('Audio capturé');
         this.recognition.onaudioend = () => console.log('Audio terminé');
-        this.recognition.onspeechstart = () => {
-            console.log('Parole détectée par le navigateur');
-            this.soundDetected = true; // Confirmation supplémentaire
-        };
+        this.recognition.onspeechstart = () => console.log('Parole détectée');
         this.recognition.onspeechend = () => console.log('Parole terminée');
-        this.recognition.onstart = () => console.log('Reconnaissance vocale démarrée');
-        this.recognition.onnomatch = () => console.log('Aucune correspondance trouvée');
         
         return true;
     }
@@ -97,8 +87,6 @@ export class AudioManager {
         this.onInterimCallback = onInterim;
         this.onErrorCallback = onError;
         this.onEndCallback = onEnd;
-        this.soundDetected = false; // Réinitialiser
-        this.maxAudioLevel = 0; // Réinitialiser
         
         // S'assurer que le micro est accessible
         if (!this.audioContext) {
@@ -134,23 +122,17 @@ export class AudioManager {
         
         if (lastResult.isFinal) {
             // Résultat final
-            console.log('=== RÉSULTAT BRUT DE L\'API ===');
-            console.log('Nombre d\'alternatives:', lastResult.length);
-            
             const transcript = lastResult[0].transcript.trim();
             const confidence = lastResult[0].confidence;
             
             // Récupérer toutes les alternatives
             const alternatives = [];
             for (let i = 0; i < lastResult.length; i++) {
-                const alt = {
+                alternatives.push({
                     transcript: lastResult[i].transcript.trim(),
                     confidence: lastResult[i].confidence
-                };
-                alternatives.push(alt);
-                console.log(`Alternative ${i + 1}: "${alt.transcript}" (confiance: ${alt.confidence || 'non fournie'})`);
+                });
             }
-            console.log('==============================');
             
             if (this.onResultCallback) {
                 this.onResultCallback({
@@ -170,12 +152,7 @@ export class AudioManager {
     
     // Gestion des erreurs
     handleError(event) {
-        console.error('=== ERREUR DE RECONNAISSANCE ===');
-        console.error('Type d\'erreur:', event.error);
-        console.error('Message:', event.message || 'Non spécifié');
-        console.error('Son détecté:', this.soundDetected);
-        console.error('Niveau audio max:', this.maxAudioLevel.toFixed(3));
-        console.error('===============================');
+        console.error('Erreur de reconnaissance:', event.error);
         
         let message = 'Erreur de reconnaissance vocale';
         switch (event.error) {
@@ -259,14 +236,6 @@ export class AudioManager {
     
     // Mise à jour du visualiseur
     updateVisualizer(level) {
-        // Tracker le niveau maximum et la détection de son
-        if (level > this.maxAudioLevel) {
-            this.maxAudioLevel = level;
-        }
-        if (level > 0.15) { // Seuil pour considérer qu'il y a du son
-            this.soundDetected = true;
-        }
-        
         const visualizers = document.querySelectorAll('.audio-visualizer.active');
         visualizers.forEach(visualizer => {
             const bars = visualizer.querySelectorAll('.audio-bar');
@@ -304,16 +273,6 @@ export class AudioManager {
             sum += this.dataArray[i];
         }
         return sum / (this.dataArray.length * 255);
-    }
-    
-    // Vérifier si du son a été détecté pendant l'écoute
-    wasSoundDetected() {
-        return this.soundDetected;
-    }
-    
-    // Obtenir le niveau audio maximum détecté
-    getMaxAudioLevel() {
-        return this.maxAudioLevel;
     }
     
     // Test du microphone pour la calibration
@@ -355,8 +314,6 @@ export class AudioManager {
         
         this.analyser = null;
         this.dataArray = null;
-        this.soundDetected = false;
-        this.maxAudioLevel = 0;
     }
 }
 
