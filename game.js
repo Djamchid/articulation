@@ -437,7 +437,7 @@ class PronunciationGame {
                 <div class="error-title">🔇 Aucune parole/ aucun son détecté</div>
                 
             `;
-        } else if (error.error === 'no-recognition') {
+        } else if (error.error === 'no-recognition') {// cela n'arrive jamais
         messageEl.innerHTML = `
             <div class="error-title">❓ Aucune parole détectée</div>
             Le son a été capté, mais aucune parole intelligible n'a été reconnue. Essayez d'articuler plus clairement.
