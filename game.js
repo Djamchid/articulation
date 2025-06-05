@@ -301,4 +301,321 @@ class PronunciationGame {
         document.getElementById('result-footer').innerHTML = '';
         
         // Passer au mot suivant après 2 secondes
-        setTimeout(()
+        setTimeout(() => {
+            this.nextWord();
+        }, 2000);
+    }
+    
+    // Gestion des homophones
+    handleHomophone(recognized) {
+        this.state.score++;
+        this.state.wordHistory.push({
+            word: this.state.currentWord,
+            recognized: recognized,
+            success: true,
+            homophone: true,
+            attempts: this.state.attemptCount
+        });
+        
+        this.showScreen('result-screen');
+        this.updateDisplay();
+        
+        const contentEl = document.getElementById('result-content');
+        
+        // Animation en deux temps
+        contentEl.innerHTML = `
+            <div style="font-size: 14px; color: #64748b; margin-bottom: 8px;">
+                J'ai entendu :
+            </div>
+            <div class="word-display homophone">${recognized}</div>
+            <div style="font-size: 14px; color: #64748b; margin: 16px 0;">
+                ↓ Homophone de ↓
+            </div>
+            <div class="word-display">${this.state.currentWord}</div>
+            <div class="instruction">Analyse phonétique...</div>
+        `;
+        
+        // Après 2 secondes, afficher le succès
+        setTimeout(() => {
+            contentEl.innerHTML = `
+                <div class="word-display success">${this.state.currentWord}</div>
+                <div class="result-icon">🔀</div>
+                <div class="instruction emphasized">CORRECT !</div>
+                <div style="margin: 20px 0; color: var(--color-text-secondary); font-size: 14px;">
+                    Prononciation phonétiquement identique
+                </div>
+            `;
+            
+            setTimeout(() => {
+                this.nextWord();
+            }, 2000);
+        }, 2000);
+    }
+    
+    // Gestion de l'échec
+    handleError() {
+        this.showScreen('result-screen');
+        
+        const contentEl = document.getElementById('result-content');
+        const footerEl = document.getElementById('result-footer');
+        
+        contentEl.innerHTML = `
+            <div style="font-size: 14px; color: #64748b; margin-bottom: 8px;">
+                Attendu :
+            </div>
+            <div class="word-display">${this.state.currentWord}</div>
+            <div style="font-size: 14px; color: #64748b; margin: 16px 0 8px 0;">
+                Reconnu :
+            </div>
+            <div class="word-display error">${this.state.recognizedWord || 'Aucun mot détecté'}</div>
+        `;
+        
+        if (this.state.attemptCount < 3) {
+            footerEl.innerHTML = `
+                <button class="button warning" onclick="game.retryWord()">
+                    ⚠️ Réessayer (${3 - this.state.attemptCount} essai${3 - this.state.attemptCount > 1 ? 's' : ''} restant${3 - this.state.attemptCount > 1 ? 's' : ''})
+                </button>
+                <button class="button secondary" onclick="game.skipWord()">
+                    ⏭️ Passer
+                </button>
+            `;
+        } else {
+            footerEl.innerHTML = `
+                <div style="margin: 16px 0; color: var(--color-text-secondary); font-size: 14px;">
+                    Nombre maximum d'essais atteint
+                </div>
+                <button class="button secondary" onclick="game.skipWord()">
+                    ⏭️ Mot suivant
+                </button>
+            `;
+        }
+    }
+    
+    // Gestion des erreurs de reconnaissance
+    handleRecognitionError(error) {
+        this.stopListening();
+        this.showScreen('error-screen');
+        this.updateDisplay();
+        
+        const messageEl = document.getElementById('error-message');
+        const footerEl = document.getElementById('error-footer');
+        
+        if (error.error === 'no-speech') {
+            messageEl.innerHTML = `
+                <div class="error-title">🔇 Aucun son détecté</div>
+                Parlez plus fort ou rapprochez-vous du microphone
+            `;
+        } else if (error.error === 'network') {
+            messageEl.innerHTML = `
+                <div class="error-title">⚠️ Problème de connexion</div>
+                Vérifiez votre connexion internet
+            `;
+        } else {
+            messageEl.innerHTML = `
+                <div class="error-title">❌ Erreur</div>
+                ${error.message}
+            `;
+        }
+        
+        footerEl.innerHTML = `
+            <button class="button warning" onclick="game.retryWord()">
+                ⚠️ Réessayer
+            </button>
+            <button class="button secondary" onclick="game.skipWord()">
+                ⏭️ Passer ce mot
+            </button>
+        `;
+    }
+    
+    // Fin de la reconnaissance
+    handleRecognitionEnd() {
+        // Si pas de résultat obtenu
+        if (this.state.currentScreen === 'listening-screen') {
+            this.handleRecognitionError({
+                error: 'no-speech',
+                message: 'Aucune parole détectée'
+            });
+        }
+    }
+    
+    // Réessayer le mot actuel
+    retryWord() {
+        this.state.attemptCount++;
+        this.showScreen('display-screen');
+        this.updateDisplay();
+        this.startPreparationCountdown();
+    }
+    
+    // Passer au mot suivant
+    skipWord() {
+        this.state.wordHistory.push({
+            word: this.state.currentWord,
+            recognized: this.state.recognizedWord || 'Passé',
+            success: false,
+            skipped: true,
+            attempts: this.state.attemptCount
+        });
+        
+        this.nextWord();
+    }
+    
+    // Mot suivant
+    nextWord() {
+        if (this.state.wordCount >= 30) {
+            this.showFinalScore();
+            return;
+        }
+        
+        this.state.wordCount++;
+        this.state.attemptCount = 1;
+        this.state.currentWord = this.getNextWord();
+        this.state.recognizedWord = '';
+        
+        // Afficher un score intermédiaire tous les 10 mots
+        if (this.state.wordCount % 10 === 1 && this.state.wordCount > 1) {
+            this.showIntermediateScore();
+        } else {
+            this.showScreen('display-screen');
+            this.updateDisplay();
+            this.startPreparationCountdown();
+        }
+    }
+    
+    // Score intermédiaire
+    showIntermediateScore() {
+        const percentage = Math.round((this.state.score / (this.state.wordCount - 1)) * 100);
+        
+        this.showScreen('result-screen');
+        document.getElementById('result-content').innerHTML = `
+            <div class="instruction">Score intermédiaire</div>
+            <div class="score-display">${this.state.score}/${this.state.wordCount - 1}</div>
+            <div class="instruction" style="font-size: 18px; color: var(--color-success);">
+                ${percentage}% de réussite
+            </div>
+            <div style="margin: 20px 0; color: var(--color-text-secondary); font-size: 14px;">
+                ${this.state.wordCount === 11 ? 'Excellent début !' : 'Continuez comme ça !'}
+            </div>
+        `;
+        
+        document.getElementById('result-footer').innerHTML = `
+            <button class="button success" onclick="game.continueGame()">
+                ➡️ Continuer
+            </button>
+        `;
+    }
+    
+    // Continuer après le score intermédiaire
+    continueGame() {
+        this.showScreen('display-screen');
+        this.updateDisplay();
+        this.startPreparationCountdown();
+    }
+    
+    // Score final
+    showFinalScore() {
+        this.showScreen('final-screen');
+        const percentage = Math.round((this.state.score / 30) * 100);
+        
+        document.getElementById('final-score').textContent = `${this.state.score}/30`;
+        document.getElementById('final-percentage').textContent = `${percentage}% de réussite`;
+        
+        // Message personnalisé selon le score
+        let message = '';
+        if (percentage >= 90) {
+            message = 'Excellente prononciation !';
+        } else if (percentage >= 70) {
+            message = 'Très bonne performance !';
+        } else if (percentage >= 50) {
+            message = 'Bon travail, continuez à pratiquer !';
+        } else {
+            message = 'La pratique rend parfait !';
+        }
+        
+        document.querySelector('#final-screen .game-content div:last-child').innerHTML = 
+            `${message}<br />Votre prononciation s'améliore`;
+    }
+    
+    // Afficher/masquer les détails
+    toggleDetails() {
+        const historyEl = document.getElementById('word-history');
+        historyEl.classList.toggle('visible');
+        
+        if (historyEl.classList.contains('visible') && !historyEl.innerHTML) {
+            // Générer l'historique
+            let html = '';
+            this.state.wordHistory.forEach((item, index) => {
+                const status = item.success ? 'success' : 'error';
+                const icon = item.success ? '✓' : '✗';
+                const info = item.homophone ? ' (homophone)' : item.skipped ? ' (passé)' : '';
+                
+                html += `
+                    <div class="word-item ${status}">
+                        <span>${index + 1}. ${item.word}</span>
+                        <span>${icon} ${item.recognized || '-'}${info}</span>
+                    </div>
+                `;
+            });
+            historyEl.innerHTML = html;
+        }
+    }
+    
+    // Redémarrer le jeu
+    restartGame() {
+        this.state = {
+            currentWord: '',
+            wordCount: 1,
+            attemptCount: 1,
+            score: 0,
+            recognizedWord: '',
+            currentScreen: 'display-screen',
+            wordHistory: [],
+            isCalibrated: true
+        };
+        
+        this.shuffleArray(this.wordList);
+        this.clearTimers();
+        this.startGame();
+    }
+    
+    // Afficher une erreur
+    showError(message) {
+        this.showScreen('error-screen');
+        document.getElementById('error-message').innerHTML = `
+            <div class="error-title">❌ Erreur</div>
+            ${message}
+        `;
+        
+        document.getElementById('error-footer').innerHTML = `
+            <button class="button secondary" onclick="game.retryWord()">
+                ⚠️ Réessayer
+            </button>
+        `;
+    }
+    
+    // Nettoyer les timers
+    clearTimers() {
+        this.timers.forEach(timer => clearInterval(timer));
+        this.timers = [];
+        
+        if (this.listeningTimeout) {
+            clearTimeout(this.listeningTimeout);
+            this.listeningTimeout = null;
+        }
+    }
+    
+    // Nettoyage à la fermeture
+    cleanup() {
+        this.clearTimers();
+        this.audioManager.cleanup();
+    }
+}
+
+// Initialisation du jeu
+document.addEventListener('DOMContentLoaded', () => {
+    const game = new PronunciationGame();
+    
+    // Nettoyage à la fermeture
+    window.addEventListener('beforeunload', () => {
+        game.cleanup();
+    });
+});
