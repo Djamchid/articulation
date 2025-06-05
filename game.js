@@ -434,8 +434,8 @@ class PronunciationGame {
         
         if (error.error === 'no-speech') {
             messageEl.innerHTML = `
-                <div class="error-title">🔇 Aucun son détecté</div>
-                Parlez plus fort ou rapprochez-vous du microphone
+                <div class="error-title">🔇 Aucune parole/ aucun son détecté</div>
+                
             `;
         } else if (error.error === 'no-recognition') {
         messageEl.innerHTML = `
