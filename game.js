@@ -30,7 +30,7 @@ class PronunciationGame {
         this.wordList = this.wordList.slice(0, 30);
         
         this.timers = [];
-        this.preparationTime = 3000; // 3 secondes
+        this.preparationTime = 2000; // 2 secondes
         this.listeningTimeout = null;
         
         this.bindEvents();
